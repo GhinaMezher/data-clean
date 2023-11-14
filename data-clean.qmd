@@ -165,10 +165,9 @@ Let us compute the difference between the 2 variables.
 life_birth|>mutate(diff=abs(FactValueNumeric-Value), keep="name")|>
   summarise(max(diff))
 ```
-check Dim1ValueCode on prof's code.
 ```{r}
 life_birth|>
-  select(-FactValueNumeric)|>
+  select(-FactValueNumeric,-Dim1ValueCode,-DateModified)|>
   rename(Region=ParentLocationCode,
          Country=SpatialDimValueCode,
          Year=Period,
@@ -181,18 +180,18 @@ life_reformating<-function(life_df){
     (my_var|>unique()|>length())==1
   }
   parent_codes<-life_df|>distinct(ParentLocationCode, ParentLocation)|>
-    remane(Region=ParentLocationCode, RegionName=ParentLocation)
+    rename(Region=ParentLocationCode, RegionName=ParentLocation)
   country_codes<-life_df|>distinct(SpatialDimValueCode, Location)|>
     rename(Country=SpatialDimValueCode, CountryName=Location)
   life<-life_df|>
     select(-ParentLocation,-Location)|>
-    rename(Region= ParentLocationCode, Country=SpatialDimValue)|>
+    rename(Region= ParentLocationCode, Country=SpatialDimValueCode)|>
     select(where(\(.x)all(is.na(.x))))
   single_values<-life|>
     select(where(single_value))|> slice_head()
   life<-life|>
     select(!where(single_value))|>
-    seelct(-FactValNumeric,-DimValueCode,-DataModified)|>
+    select(-FactValueNumeric,-Dim1ValueCode,-DateModified)|>
     rename(Year=Period,
            Attribute=Dim1)
   list(region_codes=region_codes,
@@ -201,6 +200,22 @@ life_reformating<-function(life_df){
        life_expectancy=life)
 }
 ```
+
+```{r}
+life_birth2<-life|>filter(IndicatorCode == "WHOSIS_000001")|>life_reformating()
+life_60<-life|>filter(IndicatorCode == "WHOSIS_000015")|>life_reformating()
+```
+```{r}
+life_birth2[["life_expectancy"]]|>pivot_wider(values_from=Value, names_from=Attribute)|>
+  ggplot(aes(x=Year,y=`Both sexes`,group=Country))+
+  geom_line(linewidth=0.1)+
+  fact_wrap(-Region)
+```
+
+```{r}
+life_birth2[["life_expectancy"]]|>arrange(Year)
+```
+
 
 
 
