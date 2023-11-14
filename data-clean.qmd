@@ -160,4 +160,47 @@ life_birth<-life_birth|>select(!where(single_value))
 There are still many redundancies, and a long but thin data set.
 we are going to take everything we have done and put it in a single function that we will call on life_birth and life_60. 
 
+Let us compute the difference between the 2 variables. 
+```{r}
+life_birth|>mutate(diff=abs(FactValueNumeric-Value), keep="name")|>
+  summarise(max(diff))
+```
+check Dim1ValueCode on prof's code.
+```{r}
+life_birth|>
+  select(-FactValueNumeric)|>
+  rename(Region=ParentLocationCode,
+         Country=SpatialDimValueCode,
+         Year=Period,
+         Attribute=Dim1)
+```
+
+```{r}
+life_reformating<-function(life_df){
+  single_value<-function(my_var){
+    (my_var|>unique()|>length())==1
+  }
+  parent_codes<-life_df|>distinct(ParentLocationCode, ParentLocation)|>
+    remane(Region=ParentLocationCode, RegionName=ParentLocation)
+  country_codes<-life_df|>distinct(SpatialDimValueCode, Location)|>
+    rename(Country=SpatialDimValueCode, CountryName=Location)
+  life<-life_df|>
+    select(-ParentLocation,-Location)|>
+    rename(Region= ParentLocationCode, Country=SpatialDimValue)|>
+    select(where(\(.x)all(is.na(.x))))
+  single_values<-life|>
+    select(where(single_value))|> slice_head()
+  life<-life|>
+    select(!where(single_value))|>
+    seelct(-FactValNumeric,-DimValueCode,-DataModified)|>
+    rename(Year=Period,
+           Attribute=Dim1)
+  list(region_codes=region_codes,
+       country_codes=country_codes,
+       contents=single_values,
+       life_expectancy=life)
+}
+```
+
+
 
