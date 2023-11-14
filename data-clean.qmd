@@ -1,0 +1,120 @@
+---
+title: "Data cleaning demo"
+author: "Ghina Mezher"
+format: html
+---
+
+```{r message=FALSE}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(here)
+library(vroom)
+here::i_am("data-clean.Rproj")
+```
+
+```{r message=FALSE}
+life <- vroom(here("life expectancy raw.csv"))
+```
+
+```{r}
+life|>distinct(IndicatorCode, Indicator)
+```
+Data set contains 2 subsets: life expectancy at birth and life expectancy at 60. 
+We can therefore split the dataset in 2 subsets (very common).
+Each Indictaor Code is associated with a specific Indicator.
+
+```{r}
+life_birth<-life|>filter(IndicatorCode == "WHOSIS_000001")
+life_60<-life|>filter(IndicatorCode == "WHOSIS_000015")
+```
+
+They are not exactly the same size. 
+We are able to use count as an alternative to distinct because count gives us n() and we can see that we have an additionnal value in "life expectancy at age 60". 
+```{r}
+life|>count(IndicatorCode, Indicator)
+```
+## Life expectancy at birth
+Let's look at the country: 
+```{r}
+life_birth|> count(`Location type`)
+```
+```{r}
+life_birth|> count(`ParentLocation`, `ParentLocationCode`)
+```
+We don't know the goal of this split between Locations. 
+We want to map parent location code to parent location. 
+In the final dataset we will only leave the parent location code. 
+```{r}
+parent_codes<-life_birth|>distinct(ParentLocationCode, ParentLocation)
+```
+So we get a new table that gives us the mapping. 
+distinct helps us get rid of something redundant (normalizing). It is about splitting the data ito one dataset that removes the repetitions and one that has the repetitions.
+We also do the same with redundancy (things that can be deducted from another variable )
+With a join we are able to get back the true value from the code in our final data set.
+
+```{r}
+country_codes<-life_birth|>distinct(SpatialDimValueCode, Location)
+```
+We can now remove things that are useless from "life_birth". 
+```{r}
+life_birth<-life_birth|>
+  select(-ParentLocation,-Location,-`Location type`,Indicator, IndicatorCode)
+```
+We have to remove variable that always contains the same value as they are really useless. 
+So we must find them and keep the values somewhere and remove them from our clean data base. 
+```{r}
+life_birth|>select(where(is.numeric))
+life_birth|>select(where(is.logical))
+```
+
+is going to select the columns that are numeric and the one that are logical.
+We want to remove the columns where everyone is NA.
+```{r}
+life_birth|>select(where(anyNA))
+```
+but this selects all columns that have at least one NA value. 
+```{r}
+life_birth|>select(!where(anyNA))
+```
+This selects the one that have no NA values. 
+
+But we want to delete columns with only NA. 
+```{r}
+x<-life_birth|>pull(Dim2)
+```
+I want to count how many NA there are in DIM2. Pull takes from the dataset one single column/variable
+```{r}
+life_birth|>pull(Dim2)|>is.na()|>all()
+```
+all= TRUE if they are all NA, FALSE if there is at least one NA. Wee must therefore turn that into a function. 
+we start attributing our column to a variable x (thanks to the function pull). 
+So now: 
+```{r}
+all(is.na(x))
+```
+We must make this a function is order to apply it to all the columns of the data set. 
+```{r}
+all_na<- function(my_variable){
+  my_variable|> is.na()|>all()
+}
+```
+so we have defined our function. We have an object called all_na. We can apply this function to all variables. 
+
+```{r}
+all_na(x)
+x|>all_na()     # a second way to write it with dplyr
+```
+So now we can rewrite our code by replacing it with the all_na function:
+```{r}
+life_birth|>pull(Dim2)|>all_na()
+```
+Our function expects a single object/input and gives us back one output.
+We apply it to our select with a condition: it will apply the function to all variables and select the one where the answer to our function is TRUE.
+```{r}
+life_birth|>select(where(all_na))  #no () after all_na 
+```
+Applying the processing to many rows is what dplyr does. It is a column oriented framework. this is why select where and c_across are needed, to be able to work on multiple columns.
+
+
+
