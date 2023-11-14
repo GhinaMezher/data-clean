@@ -59,7 +59,8 @@ country_codes<-life_birth|>distinct(SpatialDimValueCode, Location)
 We can now remove things that are useless from "life_birth". 
 ```{r}
 life_birth<-life_birth|>
-  select(-ParentLocation,-Location,-`Location type`,Indicator, IndicatorCode)
+  select(-ParentLocation,-Location,-`Location type`,-Indicator, -IndicatorCode)
+# for indicator abd indicator code they willbe deleted by a function we will develop later called single_value
 ```
 We have to remove variable that always contains the same value as they are really useless. 
 So we must find them and keep the values somewhere and remove them from our clean data base. 
@@ -116,5 +117,45 @@ life_birth|>select(where(all_na))  #no () after all_na
 ```
 Applying the processing to many rows is what dplyr does. It is a column oriented framework. this is why select where and c_across are needed, to be able to work on multiple columns.
 
+```{r}
+life_birth|>select(where(\(my_var)all(is.na(my_var))))
+```
+We are directly specifiying we want a function with the "\" with the input being (my_var). It is an anonymous function. 
+With a Lambda aka anonymous function aka closure.
 
+so we are naming our anonymous function.
+```{r}
+all_na_lambda<-\(my_var)all(is.na(my_var))
+```
 
+So now we can remove all the variables with all NA.
+```{r}
+life_birth<-life_birth|>select(!where(all_na))
+```
+
+Now our goal is to write a function to say wether in a column the variables are unique. If they are all the same we remove the variable from our table. 
+
+```{r}
+life_birth|>pull(ValueType)|>unique()|>length()==1
+```
+```{r}
+single_value<-function(my_var){
+  (my_var|>unique()|>length())==1
+}
+life_birth|>pull(ValueType)|>single_value()
+life_birth|>pull(SpatialDimValueCode)|>single_value()
+```
+Report the unique values :
+```{r}
+life_birth|>select(where(single_value))
+```
+```{r}
+life_birth|>select(where(single_value))|>slice_head()
+```
+We remove them from the data frame.
+```{r}
+life_birth<-life_birth|>select(!where(single_value))
+```
+
+There are still many redundancies, and a long but thin data set.
+we are going to take everything we have done and put it ina single function that we will call on life_irth and life_60. 
