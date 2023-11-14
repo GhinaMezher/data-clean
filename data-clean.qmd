@@ -158,4 +158,6 @@ life_birth<-life_birth|>select(!where(single_value))
 ```
 
 There are still many redundancies, and a long but thin data set.
-we are going to take everything we have done and put it ina single function that we will call on life_irth and life_60. 
+we are going to take everything we have done and put it in a single function that we will call on life_birth and life_60. 
+
+
